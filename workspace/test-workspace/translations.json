@@ -1,0 +1,16 @@
+{
+    "pl" :
+    {
+        "welcome-msg": "Witaj, {firstname}",
+        "thanks-msg": "Dziękujemy za zakupy w sklepie {shop_name}!",
+        "order-footer-msg": "Możesz obejrzeć swoje zamówienie na stronie <a href='{history_url}'>Historia zamówień</a> logując się na swoje konto Klienta za pomocą strony <a href='{my_account_url}'>Moje konto</a> w naszym sklepie. Jeśli posiadasz konto Gościa, możesz śledzić swoje zamówienie w sekcji <a href='{guest_tracking_url}?id_order={order_name}'>Śledzenie zamówienia</a> ."
+    },
+
+    "en" :
+    {
+        "welcome-msg": "Welcome, {firstname}",
+        "thanks-msg": "Thanks for shopping in {shop_name}!",
+        "order-footer-msg": "ENG"
+    }
+
+}
