@@ -1,17 +1,11 @@
 <?php
 
-define( 'WORKSPACE_DIR', 'workspace/' );
-define( 'COMMONS_DIR', 'common/' );
-define( 'DIST_DIR', 'dist/' );
-
-define( 'TEMPLATES_DIR', 'templates/' );
-
-define( 'PARTIALS_DIR', 'partials/' );
-
 class Parser
 {
     const PARTIAL_START = '[[-';
     const PARTIAL_END = '-]]';
+
+    const BODY_TAG = self::PARTIAL_START . 'BODY' . self::PARTIAL_END;
 
     const VARIABLE_START = '{{-';
     const VARIABLE_END = '-}}';
@@ -25,7 +19,11 @@ class Parser
 
     public function parse()
     {
+        $template_base = $this->getTemplateBase();
+
         $templates = $this->getTemplates();
+        $templates = array_diff( $templates, array( 'base.html' ) );
+
         $languages = $this->getLanguages();
 
         $dist_dir_path = $this->getWorkspaceDir() . DIST_DIR;
@@ -49,16 +47,36 @@ class Parser
 
             foreach( $templates as $template )
             {
+                $template_current_base = $template_base;
+
                 $template_content = htmlentities( file_get_contents( $this->getWorkspaceDir() . TEMPLATES_DIR . $template ) );
 
                 $template_content = $this->replacePartials( $template_content );
-                $template_content = $this->replaceTranslations( $template_content ); 
+                $template_content = $this->replaceTranslations( $template_content );
+
+                $template_content = str_replace( self::BODY_TAG, $template_content, $template_current_base );
 
                 file_put_contents( $dist_dir_path_lang . $template, html_entity_decode( $template_content ) );
                 echo html_entity_decode( $template_content );
                 echo '<hr>';
             }
         }
+    }
+
+    private function getTemplateBase()
+    {
+        $template_base = null;
+
+        if( file_exists( $this->getWorkspaceDir() . TEMPLATES_DIR . 'base.html' ) )
+        {
+            $template_base = htmlentities( file_get_contents( $this->getWorkspaceDir() . TEMPLATES_DIR . 'base.html' ) ); 
+        }
+        else
+        {
+            $template_base = htmlentities( file_get_contents( COMMONS_DIR . 'base.html' ) ); 
+        }
+
+        return $template_base;
     }
 
     private function getEmailBase()
@@ -109,13 +127,13 @@ class Parser
 
     private function getFiles( $dir )
     {
-        $templates = scandir( $this->getWorkspaceDir() . TEMPLATES_DIR );
+        $files = scandir( $this->getWorkspaceDir() . TEMPLATES_DIR );
 
-        $templates = array_filter( $templates, function( $template ){
-            return preg_match( '/.html$/', $template );
+        $files = array_filter( $files, function( $file ){
+            return preg_match( '/.html$/', $file );
         });
 
-        return $templates;
+        return $files;
     }
 
     private function getWorkspaceDir()
