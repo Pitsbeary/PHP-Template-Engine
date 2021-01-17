@@ -6,7 +6,7 @@ class Parser
     const PARTIAL_END = '-]]';
 
     const BODY_TAG = self::PARTIAL_START . 'BODY' . self::PARTIAL_END;
-
+    
     const VARIABLE_START = '{{-';
     const VARIABLE_END = '-}}';
 
@@ -52,8 +52,7 @@ class Parser
                 $template_content = htmlentities( file_get_contents( $this->getWorkspaceDir() . TEMPLATES_DIR . $template ) );
 
                 $template_content = $this->replacePartials( $template_content );
-                $template_content = $this->replaceTranslations( $template_content );
-
+                
                 $template_content = str_replace( self::BODY_TAG, $template_content, $template_current_base );
 
                 file_put_contents( $dist_dir_path_lang . $template, html_entity_decode( $template_content ) );
@@ -93,26 +92,75 @@ class Parser
     private function replacePartial( $template_content, $partial_variable_content )
     {
         $partial_name = $this->readVariable( $partial_variable_content );
+
         $partial_content = htmlentities( file_get_contents( $this->getWorkspaceDir() . TEMPLATES_DIR . PARTIALS_DIR . $partial_name ) );
+        $partial_variables = $this->getPartialVariables( $template_content, self::PARTIAL_START, self::PARTIAL_END, self::VARIABLE_START, self::VARIABLE_END );
+
+        $partial_content = $this->replacePartialVariables( $partial_content, $partial_variables, self::VARIABLE_START, self::VARIABLE_END );
 
         $template_content = str_replace( $partial_variable_content, $partial_content, $template_content );
         return $template_content;
     }
 
-    private function replaceTranslations( $template_content )
+    private function getPartialVariables( $template_content, $partial_start, $partial_end, $variable_start, $variable_end ) // TO DO
     {
-        return $this->replaceVariables( $template_content, self::VARIABLE_START, self::VARIABLE_END, 'replaceTranslation' );
+        $variables = [];
+
+        $pos_start = strpos( $template_content, $partial_start, 0 );
+        $pos_limit = strpos( $template_content, $partial_end, 0 );
+
+        $variable_start_pos = strpos( $template_content, $variable_start, $pos_start );
+
+        while( $variable_start_pos !== false && $variable_start_pos < $pos_limit )
+        {
+            $variable_end_pos = strpos( $template_content, $variable_end, $variable_start_pos );
+            $variable_content = substr( $template_content, $variable_start_pos + strlen( $variable_start ), $variable_end_pos - $variable_start_pos - strlen( $variable_end ) );
+
+            array_push( $variables, trim( $variable_content ) );
+            
+            $variable_start_pos = strpos( $template_content, $variable_start, $variable_end_pos );
+        }
+
+        return $variables;
     }
 
-    private function replaceTranslation( $template_content, $translation_variable_content )
+    private function replacePartialVariables( $partial_content, $partial_variables, $variable_start, $variable_end ) 
     {
         global $current_lang_variables;
 
-        $translation_name = $this->readVariable( $translation_variable_content );
-        $translation_content = $current_lang_variables[ $translation_name ];
+        $variable_index = 0;
+        
+        $variable_start_pos = strpos( $partial_content, $variable_start, 0 );
 
-        $template_content = str_replace( $translation_variable_content, $translation_content, $template_content );
-        return $template_content;
+        while( $variable_start_pos !== false )
+        {
+            $variable_end_pos = strpos( $partial_content, $variable_end, $variable_start_pos );
+            $variable_content = substr( $partial_content, $variable_start_pos, $variable_end_pos - $variable_start_pos + strlen( $variable_end ) );
+            
+            $variable_content_translation = $current_lang_variables[ $partial_variables[ $variable_index++ ] ];
+            $partial_content = substr_replace( $partial_content, $variable_content_translation, $variable_start_pos , strlen( $variable_content ) );
+
+            $variable_start_pos = strpos( $partial_content, $variable_start, $variable_end_pos );
+        }
+
+        return $partial_content; 
+    }
+
+    private function replaceVariables( $template_content, $variable_start, $variable_end, $replace_callback )
+    {
+        $variable_start_pos = strpos( $template_content, $variable_start, 0 );
+
+        while( $variable_start_pos !== false )
+        {
+            $variable_end_pos = strpos( $template_content, $variable_end, $variable_start_pos );
+            $variable_content = substr( $template_content, $variable_start_pos, $variable_end_pos - $variable_start_pos + strlen( $variable_end ) );
+       
+            $template_content = call_user_func_array( array( $this, $replace_callback ), array( $template_content, $variable_content ) ); // REFACTOR LATER
+            
+            $variable_start_pos = strpos( $template_content, $variable_start, $variable_end_pos );
+        }
+
+        return $template_content; 
     }
 
     private function getTemplates()
@@ -141,29 +189,13 @@ class Parser
         return WORKSPACE_DIR . $this->workspace_name . '/';
     }
 
-    private function replaceVariables( $template_content, $variable_start, $variable_end, $replace_callback )
-    {
-        $variable_start_pos = strpos( $template_content, $variable_start, 0 );
-
-        while( $variable_start_pos !== false )
-        {
-            $variable_end_pos = strpos( $template_content, $variable_end, $variable_start_pos );
-            $variable_content = substr( $template_content, $variable_start_pos, $variable_end_pos - $variable_start_pos + strlen( $variable_end ) );
-       
-            $template_content = call_user_func_array( array( $this, $replace_callback ), array( $template_content, $variable_content ) ); // REFACTOR LATER
-            
-            $variable_start_pos = strpos( $template_content, $variable_start, $variable_end_pos );
-        }
-
-        return $template_content; 
-    }
-
     private function readVariable( $variable_content )
     {
         $variable_name_start_pos = strpos( $variable_content, ' ', 0 );
         $variable_name_end_pos = strpos( $variable_content, ' ', $variable_name_start_pos + 1 );
 
         $variable_name = substr( $variable_content, $variable_name_start_pos + 1, $variable_name_end_pos - $variable_name_start_pos - 1 );
+        $variable_name = trim( $variable_name );
 
         return $variable_name;
     }
@@ -172,3 +204,4 @@ class Parser
 
 // THINK ABOUT: GLOBAL CONTEXT FOR TRANSLATIONS
 // THINK ABOUT: WORKFLOW (?)
+// NEED A PARTIAL CLASS

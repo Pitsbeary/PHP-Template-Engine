@@ -16,10 +16,3 @@ $parser->parse();
 
 $sender = new Sender( 'test-workspace' );
 $sender->sendAll();
-
-
-
-
-
-
-
